@@ -1,0 +1,220 @@
+---
+title: Evaluation Of Severe Weather Events And Their Consequences On Human Health
+  and Economy
+author: "Jiqing Huang"
+output:
+  html_document:
+    keep_md: yes
+    toc: yes
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 10
+    keep_tex: yes
+---
+
+### 1. Synopsis
+In US, storm and other weather events cause a large loss for both population health and economy every year.In order to reduce the loss and damage from these disaster, it is important to find out which of them are the most harmful. History information including time and geography data for each weather event occurrence data were collected by U.S. National Oceanic and Atmospheric Administration’s (NOAA) storm database. In this paper, the database was downloaded and analysed to answer two question:
+
+* Across the United States, which types of events (as indicated in the `EVTYPE` variable) are most harmful with respect to population health?
+
+* Across the United States, which types of events have the greatest economic consequences?
+
+### 2. Data Processing
+#### 2.1 Reading the data
+To conduct the analysis we used publicly available data coming from U.S. National Oceanic and Atmospheric Administration’s [storm data base](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2), which can be downloaded from coursera web page, and download the data requires some time so I provide the comment code instead.
+
+```{r}
+# URL <- 'https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2'
+# download.file(URL, destfile = "repdata-data-StormData.csv.bz2", method = "curl")
+```
+Then read the data and cache the computation
+
+```{r, cache = TRUE}
+dat <- read.table('repdata-data-StormData.csv.bz2', header = T, sep = ",", stringsAsFactors=FALSE)
+dim(dat)
+str(dat)
+```
+#### 2.2 Cleaning the data
+Next, We need to gather the same event toghter in `EVTYPE`, to consolidate major categories of events.
+```{r ,cache = TRUE}
+length(unique(dat$EVTYPE))
+head(unique(dat$EVTYPE), 20)
+```
+Then we do the recoding
+```{r, cache = TRUE}
+# Convert all names to lowercase
+names(dat) <- tolower(names(dat))
+
+# Convert evtype to lowercase
+dat$evtype <- tolower(dat$evtype)
+
+# Recode major categories of events into fewer groups
+dat$evtype <- gsub("^.*(fire).*$", "fire", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(flood).*$", "flood", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(rain).*$", "rain", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(precip).*$", "precipitation", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(shower).*$", "rain", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(hurricane).*$", "hurricane", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(heat).*$", "heat", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(hot).*$", "heat", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(warm).*$", "heat", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(wind).*$", "wind", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(snow).*$", "snow", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(blizzard).*$", "blizzard", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(hail).*$", "hail", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(ice).*$", "ice", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(icy).*$", "ice", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(sleet).*$", "sleet", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(freez).*$", "freeze", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(frost).*$", "frost", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(thunderstorm).*$", "thunderstorm", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(torn).*$", "tornado", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(volcan).*$", "volcanic", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(wint).*$", "winter weather", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(cold).*$", "cold", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(cool).*$", "cold", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(dry).*$", "dry", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(mud).*$", "mudslide", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(spout).*$", "waterspout", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(surf).*$", "surf", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(waves).*$", "surf", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(swell).*$", "surf", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(lightning).*$", "lightning", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(fog).*$", "fog", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(dust).*$", "dust", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(wet).*$", "wet", dat$evtype, ignore.case=TRUE)
+dat$evtype <- gsub("^.*(summary).*$", NA, dat$evtype, ignore.case=TRUE)
+```
+After recoding, see how many events nows
+```{r, cache = TRUE}
+### after cleaning the same event
+length(unique(dat$evtype))
+```
+
+Take a look at the dataset, there are 4 columns are corresponding to health and economy loss:
+    
+* `fatalities` ~ The number of fatalities caused by the events
+* `injuries` ~ number of people injured by the events
+* `propdmg` ~ The amount of property loss by the events
+* `cropdmg` ~ The amount of crop damage by the weather
+
+
+
+### 3. Data Analysis
+#### 3.1 The most harmful events for public health
+To discover what kind of weather effects are most harmful with respect to U.S. population health we’ve focused our research on 2 main variables: number of injuries (`injuries`) and number of fatalities (`fatalities`). To estimate total impact on health we’ve introduced `total` variable, being the sum of injuries and fatalities.
+```{r, cache = TRUE}
+library(plyr)
+fatalities <- ddply(dat, "evtype", summarise, fatalilities.No. = sum(fatalities) )
+dim(fatalities)
+injuries <- ddply(dat, "evtype", summarise, injuries.No. = sum(injuries) )
+dim(injuries)
+health <- merge(fatalities, injuries, by="evtype")
+### create the total of fatalities and health
+health[,4] <- health[,2] + health[,3]
+colnames(health) <- c("type", "fatalities", "injuries", "total")
+### take the top 10 health threat event
+Top10 <- health[order(health$total, decreasing=TRUE),][1:10,]
+Top10
+```
+Now start the top 10 threat event plot, and we need to `melt` the data by the types `fatalities`, `injuries`, and `total`.
+```{r, cache = TRUE, fig.align = 'center', fig.width = 9}
+### start plot
+library(reshape2)
+Top10 <- melt(Top10, id.vars="type")
+dim(Top10)
+str(Top10)
+library(ggplot2)
+ggplot(Top10, aes(x = reorder(type, -value), y = value)) + 
+  geom_bar(stat = "identity", aes(fill = variable), position = "dodge") + 
+  scale_y_sqrt("Number of Cases") + xlab("Event Type") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) + 
+  ggtitle("Top 10 Health Threat Events")
+```
+
+#### 3.2 The most harmful events for economy
+We know the `propdmg` and `cropdmg` means the dollars lost for the property damage and crop damage, but they are in different units (`propdmgexp` and `cropdmgexp`) in original data, and we can check them by following code.
+```{r, cache = TRUE}
+unique(dat$propdmgexp)
+unique(dat$cropdmgexp)
+```
+According to the [National Weather Service Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf):
+
++ “K”/ “k” stand for thousand
++ “M”/ “m” stand for million
++ “B”/ “b” stand for billion
+
+Thus we first subset a `economy` data and tranform them as the same unit for property and crop.
+```{r, cache = TRUE}
+economy <- dat[ , c("evtype", "propdmg", "propdmgexp", "cropdmg", "cropdmgexp")]
+### make the property unit the same
+index1 <- which(economy$propdmgexp %in% c("K","k"))
+index2 <- which(economy$propdmgexp %in% c("M","m"))
+index3 <- which(economy$propdmgexp %in% c("B","b"))
+economy[,"propdmg"][index1] <- economy[,"propdmg"][index1]*(10^3)
+economy[,"propdmg"][index2] <- economy[,"propdmg"][index2]*(10^6)
+economy[,"propdmg"][index3] <- economy[,"propdmg"][index3]*(10^9)
+#### same for the crop
+index4 <- which(economy$cropdmgexp %in% c("K","k"))
+index5 <- which(economy$cropdmgexp %in% c("M","m"))
+index6 <- which(economy$cropdmgexp %in% c("B","b"))
+economy[,"cropdmg"][index4] <- economy[,"cropdmg"][index4]*(10^3)
+economy[,"cropdmg"][index5] <- economy[,"cropdmg"][index5]*(10^6)
+economy[,"cropdmg"][index6] <- economy[,"cropdmg"][index6]*(10^9)
+```
+Then we use `ddply` to summarise the total dollars lost of each threat event for propert and crop damage, and find the top 10 threat event.
+```{r, cache = TRUE}
+property <- ddply(economy, "evtype", summarise, property = sum(propdmg) )
+crop <- ddply(economy, "evtype", summarise, crop = sum(cropdmg) )
+### take the top 10 health threat event
+property.Top10 <- property[order(property$property, decreasing = TRUE),   ][1:10, ]
+crop.Top10 <- crop[order(crop$crop, decreasing = TRUE),   ][1:10, ]
+head(property.Top10)
+head(crop.Top10)
+```
+Then we start to plot
+```{r, cache = TRUE, fig.align = 'center', fig.width = 5, fig.height = 10}
+library(gridExtra)
+plot1 <- ggplot(property.Top10, aes(x = reorder(evtype, -property), y = property)) + 
+  geom_bar(stat = "identity", position = "dodge", color = "indianred1", fill = "lightblue") + 
+  scale_y_sqrt("Property Damage(US Dollar)") + xlab("Event Type") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) + 
+  ggtitle("Top 10 Property Threat Events")
+
+plot2 <- ggplot(crop.Top10, aes(x = reorder(evtype, -crop), y = crop)) + 
+  geom_bar(stat = "identity", position = "dodge", color = "indianred1", fill = "lightgreen") + 
+  scale_y_sqrt("Property Damage(US Dollar)") + xlab("Event Type") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) + 
+  ggtitle("Top 10 Crop Threat Events")
+
+grid.arrange(plot1, plot2, ncol = 1)
+```
+
+#### 3.3 Which part of US suffer most from the weather disaster?
+create a dataframe `US.state` to show number of health threaten cases by state.
+```{r, cache = TRUE}
+US.state <- dat[,c("state", "fatalities", "injuries")]
+### columnwise addition for sub-total 
+US.state$subtotal <- US.state$fatalities + US.state$injuries
+### find the total event for eah state
+US.state_total <- ddply(US.state, 'state', summarise, total = sum(subtotal))
+head(US.state_total)
+```
+then start plot
+```{r, cache = TRUE, fig.align = 'center', fig.width = 14, fig.height = 8}
+ggplot(US.state_total, aes(x = reorder(state, -total), y = total)) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  scale_y_sqrt("Number of health cases") + xlab("State") +
+  theme(axis.text.x = element_text(hjust=1, angle = 45)) + 
+  ggtitle("Number of Health Case in State")
+```
+
+### 4. Result
+The key findings:
+
+> * Top 3 dangerous weather disaster for **public health**: <span style="color:red">_tornado_,  _wind_,   _heat_</span>.
+> * Top 3 dangerous weather disaster for property loss (**economy**): <span style="color:blue">_flood_,  _hurricane_,  _tornado_</span>.
+> * Top 3 dangerous weather disaster for crop damage (**economy**): <span style="color:green">_drought_,  _flood_,  _hurricane_</span>.
+
+Finally, **Texas** is the most vulnerable targets for bad weather events.
